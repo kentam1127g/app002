@@ -794,13 +794,10 @@
         const bg = this.add.rectangle(0, 0, txt.width + 18, txt.height + 12, 0xf2f0eb);
         bg.setStrokeStyle(1.5, 0x1e1e1e);
 
-        // 吹き出しの三角（下向き）
-        const tri = this.add.triangle(0, bg.height / 2 + 5, -5, 0, 5, 0, 0, 8, 0xf2f0eb);
-
         this.bubble = this.add.container(
           this.figure.x,
-          this.figure.headY - 28,
-          [bg, txt, tri]
+          this.figure.headY - 24,
+          [bg, txt]
         );
 
         this.tweens.add({
