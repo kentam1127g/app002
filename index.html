@@ -432,6 +432,15 @@
     const FLOOR_H = 44;
     const GROUND  = H - FLOOR_H;
 
+    const CHAIR = {
+      x:     360,
+      seatY: GROUND - 32,
+      seatW: 34,
+      seatH: 4,
+      backW: 4,
+      backH: 42,
+    };
+
     // ---- メモリ管理 ----
     const MEM_KEYS = {
       wordBank:  'wordBank',
@@ -978,24 +987,38 @@
     class StickFigure {
       constructor(scene, x) {
         this.name        = 'A';
-        this.x           = x;
-        this.vx          = (35 + Math.random() * 20) * (Math.random() < 0.5 ? 1 : -1);
-        this.t           = Math.random() * Math.PI * 2;
-        this.state       = 'WALKING';
+        this.x           = CHAIR.x;
+        this.vx          = 0;
+        this.dir         = -1;
+        this.t           = 0;
+        this.state       = 'SITTING';
+        this.targetX     = CHAIR.x;
+        this.nextState   = 'SITTING';
         this.mood        = null;
         this.personality = null;
         this.g           = scene.add.graphics();
       }
 
       update(delta) {
-        this.t += delta / 1000;
-        this.x += this.vx * delta / 1000;
-
-        const minX = WALL_W + 25;
-        const maxX = W - WALL_W - 25;
-        if (this.x <= minX) { this.x = minX; this.vx =  Math.abs(this.vx); }
-        if (this.x >= maxX) { this.x = maxX; this.vx = -Math.abs(this.vx); }
-
+        if (this.state === 'WALKING') {
+          this.t += delta / 1000;
+          const dx = this.targetX - this.x;
+          if (Math.abs(dx) < 3) {
+            this.x     = this.targetX;
+            this.vx    = 0;
+            this.state = this.nextState;
+            if (this.nextState === 'SITTING') this.dir = -1;
+          } else {
+            this.vx  = Math.sign(dx) * 45;
+            this.x  += this.vx * delta / 1000;
+            this.dir = Math.sign(dx);
+          }
+        } else if (this.state === 'STANDING') {
+          this.t += delta / 1000 * 0.5;
+          this.vx = 0;
+        } else {
+          this.vx = 0;
+        }
         this.draw();
       }
 
@@ -1004,22 +1027,57 @@
         g.clear();
         g.lineStyle(2, 0x1e1e1e, 1);
         g.fillStyle(0x1e1e1e, 1);
+        if      (this.state === 'WALKING')  this.drawWalking(g);
+        else if (this.state === 'STANDING') this.drawStanding(g);
+        else                                this.drawSitting(g);
+      }
 
-        const x   = this.x;
-        const dir = this.vx >= 0 ? 1 : -1;
-        const s   = Math.sin(this.t * 4.0) * 0.38;
-
-        const R  = 9, BL = 26, LL = 22, AL = 17;
+      drawWalking(g) {
+        const x = this.x, dir = this.dir;
+        const s = Math.sin(this.t * 4.0) * 0.38;
+        const R = 9, BL = 26, LL = 22, AL = 17;
         const hipY  = GROUND - LL;
         const shldY = hipY - BL;
-        const headY = shldY - R - 2;
-
-        g.fillCircle(x, headY, R);
+        g.fillCircle(x, shldY - R - 2, R);
         this._ln(g, x, shldY, x, hipY);
         this._ln(g, x, hipY, x + dir * Math.sin(s) * LL, hipY + Math.cos(s) * LL);
         this._ln(g, x, hipY, x - dir * Math.sin(s) * LL, hipY + Math.cos(s) * LL);
         this._ln(g, x, shldY, x - dir * Math.sin(s) * AL, shldY + AL * 0.9);
         this._ln(g, x, shldY, x + dir * Math.sin(s) * AL, shldY + AL * 0.9);
+      }
+
+      drawStanding(g) {
+        const x = this.x;
+        const R = 9, BL = 26, LL = 22, AL = 17;
+        const hipY  = GROUND - LL;
+        const shldY = hipY - BL;
+        const bob   = Math.sin(this.t * 1.2) * 1.0;
+        g.fillCircle(x, shldY - R - 2 + bob, R);
+        this._ln(g, x, shldY + bob, x, hipY);
+        this._ln(g, x, hipY, x + 6, GROUND);
+        this._ln(g, x, hipY, x - 6, GROUND);
+        this._ln(g, x, shldY + bob, x + AL * 0.55, shldY + AL * 0.85 + bob);
+        this._ln(g, x, shldY + bob, x - AL * 0.55, shldY + AL * 0.85 + bob);
+      }
+
+      drawSitting(g) {
+        const dir = this.dir;
+        const hipX = CHAIR.x, hipY = CHAIR.seatY;
+        const R = 9, BL = 26, AL = 17;
+        const shldY    = hipY - BL;
+        const thighLen = 16;
+        const shinLen  = GROUND - hipY - 2;
+        g.fillCircle(hipX, shldY - R - 2, R);
+        this._ln(g, hipX, shldY, hipX, hipY);
+        // 前脚
+        this._ln(g, hipX, hipY,     hipX + dir * thighLen,       hipY);
+        this._ln(g, hipX + dir * thighLen, hipY, hipX + dir * thighLen, hipY + shinLen);
+        // 後脚（奥行き感）
+        this._ln(g, hipX, hipY + 2, hipX + dir * (thighLen - 4), hipY + 2);
+        this._ln(g, hipX + dir * (thighLen - 4), hipY + 2, hipX + dir * (thighLen - 4), hipY + shinLen - 3);
+        // 腕
+        this._ln(g, hipX, shldY, hipX + dir * AL * 0.5,  shldY + AL * 0.9);
+        this._ln(g, hipX, shldY, hipX - dir * AL * 0.35, shldY + AL * 0.8);
       }
 
       _ln(g, x1, y1, x2, y2) {
@@ -1030,7 +1088,24 @@
       }
 
       get headY() {
+        if (this.state === 'SITTING') return CHAIR.seatY - 26 - 9 - 2;
         return GROUND - 22 - 26 - 9 - 2;
+      }
+
+      toggleAction() {
+        if (this.state === 'SITTING' || (this.state === 'WALKING' && this.nextState === 'SITTING')) {
+          const minX     = WALL_W + 40;
+          const maxX     = CHAIR.x - 80;
+          this.targetX   = minX + Math.random() * (maxX - minX);
+          this.nextState = 'STANDING';
+          this.state     = 'WALKING';
+          this.dir       = Math.sign(this.targetX - this.x) || -1;
+        } else {
+          this.targetX   = CHAIR.x;
+          this.nextState = 'SITTING';
+          this.state     = 'WALKING';
+          this.dir       = Math.sign(CHAIR.x - this.x) || 1;
+        }
       }
     }
 
@@ -1046,6 +1121,15 @@
         this.add.rectangle(WALL_W / 2, H / 2, WALL_W, H, C.wall);
         this.add.rectangle(W - WALL_W / 2, H / 2, WALL_W, H, C.wall);
 
+        // 椅子
+        const cg   = this.add.graphics();
+        const legH = GROUND - (CHAIR.seatY + CHAIR.seatH);
+        cg.fillStyle(0x1e1e1e, 1);
+        cg.fillRect(CHAIR.x - CHAIR.seatW / 2, CHAIR.seatY, CHAIR.seatW, CHAIR.seatH);
+        cg.fillRect(CHAIR.x + CHAIR.seatW / 2 - CHAIR.backW, CHAIR.seatY - CHAIR.backH, CHAIR.backW, CHAIR.backH + CHAIR.seatH);
+        cg.fillRect(CHAIR.x - CHAIR.seatW / 2,            CHAIR.seatY + CHAIR.seatH, 3, legH);
+        cg.fillRect(CHAIR.x + CHAIR.seatW / 2 - 3,        CHAIR.seatY + CHAIR.seatH, 3, legH);
+
         this.figure = new StickFigure(this, W / 2);
 
         this.notifText = this.add.text(W / 2, 60, '', {
@@ -1054,6 +1138,8 @@
           backgroundColor: '#f2f0eb',
           padding: { x: 8, y: 4 },
         }).setOrigin(0.5).setAlpha(0);
+
+        this.input.on('pointerdown', () => this.figure.toggleAction());
 
         window.gameScene = this;
       }
