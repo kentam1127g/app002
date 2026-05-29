@@ -1,0 +1,736 @@
+<!DOCTYPE html>
+<html lang="ja">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>棒人間</title>
+  <style>
+    * { margin: 0; padding: 0; box-sizing: border-box; }
+
+    body {
+      background: #1a1a1a;
+      display: flex;
+      justify-content: center;
+      align-items: center;
+      height: 100vh;
+      font-family: 'Hiragino Kaku Gothic ProN', 'Meiryo', sans-serif;
+    }
+
+    /* ---- 日記UI ---- */
+    #diary-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      background: #1e1e1e;
+      color: #f2f0eb;
+      border: none;
+      padding: 10px 20px;
+      font-size: 13px;
+      letter-spacing: 0.08em;
+      cursor: pointer;
+      z-index: 10;
+    }
+    #diary-btn:hover { background: #3a3a3a; }
+
+    #diary-panel {
+      display: none;
+      position: fixed;
+      top: 50%;
+      left: 50%;
+      transform: translate(-50%, -50%);
+      background: #f2f0eb;
+      border: 2px solid #1e1e1e;
+      padding: 28px 24px;
+      width: 340px;
+      z-index: 100;
+    }
+    #diary-panel h3 {
+      font-size: 14px;
+      font-weight: normal;
+      letter-spacing: 0.1em;
+      color: #1e1e1e;
+      margin-bottom: 14px;
+    }
+    #diary-text {
+      width: 100%;
+      height: 110px;
+      border: 1px solid #aaa;
+      background: #faf8f4;
+      padding: 10px;
+      font-size: 13px;
+      line-height: 1.7;
+      resize: none;
+      color: #1e1e1e;
+      outline: none;
+    }
+    #diary-text:focus { border-color: #1e1e1e; }
+    #char-count {
+      font-size: 11px;
+      color: #888;
+      text-align: right;
+      margin-top: 4px;
+      margin-bottom: 10px;
+    }
+
+    /* 写真添付エリア */
+    #photo-area {
+      margin-bottom: 12px;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      min-height: 36px;
+    }
+    #photo-add-btn {
+      background: transparent;
+      border: 1px solid #ccc;
+      color: #888;
+      font-size: 12px;
+      padding: 5px 12px;
+      cursor: pointer;
+    }
+    #photo-add-btn:hover { border-color: #888; color: #1e1e1e; }
+    #photo-preview-wrap {
+      display: none;
+      position: relative;
+    }
+    #photo-preview {
+      width: 48px;
+      height: 48px;
+      object-fit: cover;
+      border: 1px solid #ccc;
+      display: block;
+    }
+    #photo-remove {
+      position: absolute;
+      top: -6px;
+      right: -6px;
+      width: 16px;
+      height: 16px;
+      background: #1e1e1e;
+      color: #f2f0eb;
+      border: none;
+      font-size: 10px;
+      cursor: pointer;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      line-height: 1;
+    }
+
+    #diary-result {
+      min-height: 28px;
+      font-size: 12px;
+      color: #555;
+      margin-bottom: 14px;
+      letter-spacing: 0.05em;
+    }
+    .panel-btns { display: flex; gap: 10px; }
+    #diary-submit {
+      flex: 1;
+      background: #1e1e1e;
+      color: #f2f0eb;
+      border: none;
+      padding: 9px;
+      font-size: 13px;
+      cursor: pointer;
+      letter-spacing: 0.05em;
+    }
+    #diary-submit:hover    { background: #3a3a3a; }
+    #diary-submit:disabled { background: #888; cursor: default; }
+    #diary-close {
+      background: transparent;
+      color: #888;
+      border: 1px solid #ccc;
+      padding: 9px 14px;
+      font-size: 13px;
+      cursor: pointer;
+    }
+    #diary-close:hover { border-color: #888; color: #1e1e1e; }
+
+    #overlay {
+      display: none;
+      position: fixed;
+      inset: 0;
+      background: rgba(0,0,0,0.4);
+      z-index: 50;
+    }
+
+    /* ---- デバッグパネル ---- */
+    #debug-toggle {
+      position: fixed;
+      top: 12px;
+      left: 12px;
+      background: rgba(10,10,10,0.7);
+      color: #555;
+      font-family: 'Courier New', monospace;
+      font-size: 10px;
+      padding: 3px 8px;
+      border: 1px solid #333;
+      cursor: pointer;
+      z-index: 300;
+      letter-spacing: 0.1em;
+    }
+    #debug-toggle:hover { color: #aaa; }
+
+    #debug-panel {
+      display: none;
+      position: fixed;
+      top: 36px;
+      left: 12px;
+      background: rgba(8, 8, 8, 0.92);
+      color: #c8c8c8;
+      font-family: 'Courier New', monospace;
+      font-size: 11px;
+      line-height: 1.65;
+      padding: 12px 14px;
+      width: 260px;
+      z-index: 200;
+      border: 1px solid #2a2a2a;
+    }
+    .d-section {
+      margin-bottom: 9px;
+      padding-bottom: 9px;
+      border-bottom: 1px solid #222;
+    }
+    .d-section:last-child { border-bottom: none; margin-bottom: 0; padding-bottom: 0; }
+    .d-title {
+      color: #555;
+      font-size: 9.5px;
+      letter-spacing: 0.15em;
+      text-transform: uppercase;
+      margin-bottom: 4px;
+    }
+    .d-row { display: flex; justify-content: space-between; gap: 6px; }
+    .d-row .k { color: #555; }
+    .d-row .v { color: #e0e0e0; text-align: right; }
+    #d-words { font-size: 10.5px; margin-top: 3px; }
+    #d-words .w-pos { color: #9ecfaa; }
+    #d-words .w-neg { color: #cf9e9e; }
+    #d-words .w-neu { color: #c8c8c8; }
+    .d-tags  { color: #f0c060; word-break: break-all; font-size: 10.5px; margin-top: 3px; }
+    .d-block { color: #9ecfaa; font-size: 10px; line-height: 1.5; white-space: pre-wrap; margin-top: 3px; }
+  </style>
+</head>
+<body>
+
+  <div id="overlay"></div>
+
+  <div id="diary-panel">
+    <h3>今日の日記</h3>
+    <textarea id="diary-text" maxlength="300" placeholder="今日のことを書いてください..."></textarea>
+    <div id="char-count">0 / 300</div>
+
+    <div id="photo-area">
+      <input type="file" id="photo-input" accept="image/*" style="display:none">
+      <div id="photo-preview-wrap">
+        <img id="photo-preview" alt="添付写真">
+        <button id="photo-remove" type="button">×</button>
+      </div>
+      <button id="photo-add-btn" type="button">写真を添付</button>
+    </div>
+
+    <div id="diary-result"></div>
+    <div class="panel-btns">
+      <button id="diary-submit">ポストに入れる</button>
+      <button id="diary-close">閉じる</button>
+    </div>
+  </div>
+
+  <button id="diary-btn">日記を書く</button>
+
+  <!-- デバッグパネル -->
+  <button id="debug-toggle">D</button>
+  <div id="debug-panel">
+    <div class="d-section">
+      <div class="d-title">FIGURE</div>
+      <div class="d-row"><span class="k">name</span>  <span class="v" id="d-name">—</span></div>
+      <div class="d-row"><span class="k">state</span> <span class="v" id="d-state">—</span></div>
+      <div class="d-row"><span class="k">pos x</span> <span class="v" id="d-pos">—</span></div>
+      <div class="d-row"><span class="k">vx</span>    <span class="v" id="d-vx">—</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-title">MOOD / PERSONALITY</div>
+      <div class="d-row"><span class="k">mood</span>        <span class="v" id="d-mood">—</span></div>
+      <div class="d-row"><span class="k">personality</span> <span class="v" id="d-personality">—</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-title">WORD BANK &nbsp;<span id="d-word-count" style="color:#444"></span></div>
+      <div id="d-words">—</div>
+    </div>
+    <div class="d-section">
+      <div class="d-title">QUIRKS BANK &nbsp;<span id="d-quirk-count" style="color:#444"></span></div>
+      <div id="d-quirks" class="d-tags">—</div>
+    </div>
+    <div class="d-section">
+      <div class="d-title">PATTERN</div>
+      <div id="d-pattern" class="d-block">—</div>
+    </div>
+    <div class="d-section">
+      <div class="d-title">SHORT TERM</div>
+      <div class="d-row"><span class="k">events</span> <span class="v" id="d-short-count">0</span></div>
+    </div>
+    <div class="d-section">
+      <div class="d-title">SYSTEM</div>
+      <div class="d-row"><span class="k">fps</span>     <span class="v" id="d-fps">—</span></div>
+      <div class="d-row"><span class="k">storage</span> <span class="v" id="d-storage">—</span></div>
+    </div>
+  </div>
+
+  <script src="config.js"></script>
+  <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
+  <script>
+    const W = 480;
+    const H = 320;
+
+    const C = {
+      bg:        0xf2f0eb,
+      wall:      0x1e1e1e,
+      floorFill: 0xe8e4dc,
+      baseboard: 0x888880,
+    };
+
+    const WALL_W  = 18;
+    const CEIL_H  = 14;
+    const FLOOR_H = 44;
+    const GROUND  = H - FLOOR_H;
+
+    // ---- メモリ管理 ----
+    const MEM_KEYS = {
+      wordBank:  'wordBank',
+      quirks:    'quirksBank',
+      shortTerm: 'shortTerm',
+      pattern:   'pattern',
+    };
+
+    function loadWordBank() {
+      const stored = JSON.parse(localStorage.getItem(MEM_KEYS.wordBank) || '[]');
+      // 旧フォーマット（文字列配列）からの移行
+      return stored.map(item =>
+        typeof item === 'string'
+          ? { word: item, weight: 1, emotion: 'neutral', category: 'other', linked: [] }
+          : item
+      );
+    }
+
+    const mem = {
+      get quirks()    { return JSON.parse(localStorage.getItem(MEM_KEYS.quirks)    || '[]'); },
+      get shortTerm() { return JSON.parse(localStorage.getItem(MEM_KEYS.shortTerm) || '[]'); },
+      get pattern()   { return localStorage.getItem(MEM_KEYS.pattern) || null; },
+    };
+
+    let wordBank = loadWordBank();
+
+    function saveWordBank() {
+      localStorage.setItem(MEM_KEYS.wordBank, JSON.stringify(wordBank));
+    }
+
+    // 単語帳に追加（重み・共起リンクを更新）
+    function addWordsToBank(newWords) {
+      const inEntry = newWords.map(w => w.word);
+
+      newWords.forEach(({ word, emotion, category }) => {
+        const existing = wordBank.find(w => w.word === word);
+        if (existing) {
+          existing.weight++;
+          // 同エントリの単語を相互リンク
+          inEntry.forEach(w => {
+            if (w !== word && !existing.linked.includes(w)) {
+              existing.linked.push(w);
+            }
+          });
+        } else {
+          wordBank.push({
+            word,
+            weight:   1,
+            emotion:  emotion  || 'neutral',
+            category: category || 'other',
+            linked:   inEntry.filter(w => w !== word),
+          });
+        }
+      });
+      saveWordBank();
+    }
+
+    // ---- OpenAI API ----
+
+    // 日記の長さに応じた抽出数（固有名詞枠は別）
+    function otherWordCount(len) {
+      if (len < 100) return 2;
+      if (len < 200) return 3;
+      return 4;
+    }
+
+    // JSONパース（失敗時はフォールバック）
+    function parseWordJSON(raw) {
+      try {
+        const parsed = JSON.parse(raw);
+        if (Array.isArray(parsed)) return parsed;
+      } catch (_) {}
+      // フォールバック：カンマ区切り文字列として扱う
+      return raw.split(/[、,，\s]+/)
+        .map(w => w.trim()).filter(w => w.length > 0)
+        .map(w => ({ word: w, emotion: 'neutral', category: 'other' }));
+    }
+
+    async function extractWordsFromDiary(diaryText) {
+      const n = otherWordCount(diaryText.length);
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${CONFIG.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `以下の優先順位でこの日記から単語を抽出し、JSON配列のみ返してください。
+
+優先順位：
+1. 人名・地名（category: person または place）を全て含める（最大3個）
+2. 感情語を1〜2個（category: emotion）
+3. その他の印象的な単語を${n}個（food / event / other）
+
+フィールド：word / emotion（positive・negative・neutral）/ category（person・food・place・emotion・event・other）
+説明文は不要。JSON配列のみ返す。`,
+            },
+            { role: 'user', content: diaryText },
+          ],
+          max_tokens: 200,
+          temperature: 0.7,
+        }),
+      });
+      const data = await res.json();
+      return parseWordJSON(data.choices[0].message.content.trim());
+    }
+
+    async function extractWordsFromPhoto(base64) {
+      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+        method: 'POST',
+        headers: {
+          'Content-Type': 'application/json',
+          'Authorization': `Bearer ${CONFIG.apiKey}`,
+        },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [{
+            role: 'user',
+            content: [
+              { type: 'image_url', image_url: { url: `data:image/jpeg;base64,${base64}` } },
+              {
+                type: 'text',
+                text: `この写真から印象的な単語を3〜5個抽出し、JSON配列のみ返してください。
+フィールド：word / emotion（positive・negative・neutral）/ category（person・food・place・emotion・event・other）
+説明文は不要。JSON配列のみ。`,
+              },
+            ],
+          }],
+          max_tokens: 150,
+          temperature: 0.7,
+        }),
+      });
+      const data = await res.json();
+      return parseWordJSON(data.choices[0].message.content.trim());
+    }
+
+    // 画像をリサイズしてbase64に変換（API送信前の圧縮）
+    function resizeImage(file, maxDim = 512) {
+      return new Promise(resolve => {
+        const img  = new Image();
+        const url  = URL.createObjectURL(file);
+        img.onload = () => {
+          const scale  = Math.min(1, maxDim / Math.max(img.width, img.height));
+          const canvas = document.createElement('canvas');
+          canvas.width  = Math.round(img.width  * scale);
+          canvas.height = Math.round(img.height * scale);
+          canvas.getContext('2d').drawImage(img, 0, 0, canvas.width, canvas.height);
+          URL.revokeObjectURL(url);
+          resolve(canvas.toDataURL('image/jpeg', 0.8).split(',')[1]);
+        };
+        img.src = url;
+      });
+    }
+
+    // ---- 日記UI ----
+    const panel     = document.getElementById('diary-panel');
+    const overlay   = document.getElementById('overlay');
+    const textarea  = document.getElementById('diary-text');
+    const charCount = document.getElementById('char-count');
+    const result    = document.getElementById('diary-result');
+    const submitBtn = document.getElementById('diary-submit');
+
+    document.getElementById('diary-btn').addEventListener('click', () => {
+      panel.style.display = 'block';
+      overlay.style.display = 'block';
+      textarea.focus();
+    });
+    document.getElementById('diary-close').addEventListener('click', closePanel);
+    overlay.addEventListener('click', closePanel);
+
+    function closePanel() {
+      panel.style.display = 'none';
+      overlay.style.display = 'none';
+      result.textContent = '';
+      clearPhoto();
+    }
+
+    textarea.addEventListener('input', () => {
+      charCount.textContent = `${textarea.value.length} / 300`;
+    });
+
+    // ---- 写真添付 ----
+    let photoBase64 = null;
+
+    const photoInput       = document.getElementById('photo-input');
+    const photoPreviewWrap = document.getElementById('photo-preview-wrap');
+    const photoPreview     = document.getElementById('photo-preview');
+
+    document.getElementById('photo-add-btn').addEventListener('click', () => {
+      photoInput.click();
+    });
+
+    photoInput.addEventListener('change', async e => {
+      const file = e.target.files[0];
+      if (!file) return;
+      photoBase64 = await resizeImage(file);
+      photoPreview.src = `data:image/jpeg;base64,${photoBase64}`;
+      photoPreviewWrap.style.display = 'block';
+      document.getElementById('photo-add-btn').style.display = 'none';
+    });
+
+    document.getElementById('photo-remove').addEventListener('click', clearPhoto);
+
+    function clearPhoto() {
+      photoBase64 = null;
+      photoInput.value = '';
+      photoPreviewWrap.style.display = 'none';
+      document.getElementById('photo-add-btn').style.display = 'block';
+    }
+
+    // ---- 送信 ----
+    submitBtn.addEventListener('click', async () => {
+      const text = textarea.value.trim();
+      if (text.length < 10 && !photoBase64) {
+        result.textContent = 'もう少し書いてみてください';
+        return;
+      }
+
+      submitBtn.disabled = true;
+      result.textContent = '読んでいます...';
+
+      try {
+        const allWords = [];
+
+        if (text.length >= 10) {
+          const diaryWords = await extractWordsFromDiary(text);
+          allWords.push(...diaryWords);
+        }
+
+        if (photoBase64) {
+          result.textContent = '写真を見ています...';
+          const photoWords = await extractWordsFromPhoto(photoBase64);
+          allWords.push(...photoWords);
+        }
+
+        addWordsToBank(allWords);
+
+        const wordLabels = allWords.map(w => w.word);
+        result.textContent = `おぼえた：${wordLabels.join('　')}`;
+        textarea.value = '';
+        charCount.textContent = '0 / 300';
+        clearPhoto();
+
+        if (window.gameScene) window.gameScene.showLearnedWords(wordLabels);
+
+      } catch (e) {
+        result.textContent = 'エラーが発生しました';
+        console.error(e);
+      } finally {
+        submitBtn.disabled = false;
+      }
+    });
+
+    // ---- デバッグパネル ----
+    let debugVisible = false;
+    const debugPanel = document.getElementById('debug-panel');
+
+    function toggleDebug() {
+      debugVisible = !debugVisible;
+      debugPanel.style.display = debugVisible ? 'block' : 'none';
+    }
+
+    document.getElementById('debug-toggle').addEventListener('click', toggleDebug);
+    document.addEventListener('keydown', e => {
+      if ((e.key === 'd' || e.key === 'D') && !['INPUT','TEXTAREA'].includes(e.target.tagName)) {
+        toggleDebug();
+      }
+    });
+
+    const EMOTION_CLS = { positive: 'w-pos', negative: 'w-neg', neutral: 'w-neu' };
+
+    function updateDebug(figure) {
+      if (!debugVisible) return;
+
+      document.getElementById('d-name').textContent        = figure.name;
+      document.getElementById('d-state').textContent       = figure.state;
+      document.getElementById('d-pos').textContent         = Math.round(figure.x);
+      document.getElementById('d-vx').textContent          = figure.vx.toFixed(1);
+      document.getElementById('d-mood').textContent        = figure.mood        || '—';
+      document.getElementById('d-personality').textContent = figure.personality || '—';
+
+      // Word bank（感情で色分け）
+      const wb = loadWordBank();
+      document.getElementById('d-word-count').textContent = `(${wb.length})`;
+      const wordsEl = document.getElementById('d-words');
+      if (wb.length === 0) {
+        wordsEl.innerHTML = '<span class="w-neu">—</span>';
+      } else {
+        wordsEl.innerHTML = wb.map(w => {
+          const cls = EMOTION_CLS[w.emotion] || 'w-neu';
+          return `<span class="${cls}">×${w.weight} ${w.word}</span>`;
+        }).join('<br>');
+      }
+
+      // Quirks
+      const qb = mem.quirks;
+      document.getElementById('d-quirk-count').textContent = `(${qb.length})`;
+      document.getElementById('d-quirks').textContent =
+        qb.length ? qb.map(q => `[${q.type}] ${q.base || q.phrase}`).join('\n') : '—';
+
+      document.getElementById('d-pattern').textContent    = mem.pattern || '—';
+      document.getElementById('d-short-count').textContent = mem.shortTerm.length;
+
+      if (window.gameScene) {
+        document.getElementById('d-fps').textContent =
+          Math.round(window.gameScene.game.loop.actualFps);
+      }
+      let bytes = 0;
+      for (const key in localStorage) {
+        if (Object.prototype.hasOwnProperty.call(localStorage, key)) {
+          bytes += (localStorage.getItem(key) || '').length * 2;
+        }
+      }
+      document.getElementById('d-storage').textContent =
+        bytes < 1024 ? `${bytes}B` : `${(bytes / 1024).toFixed(1)}KB`;
+    }
+
+    // ---- Phaser ----
+    class StickFigure {
+      constructor(scene, x) {
+        this.name        = 'A';
+        this.x           = x;
+        this.vx          = (35 + Math.random() * 20) * (Math.random() < 0.5 ? 1 : -1);
+        this.t           = Math.random() * Math.PI * 2;
+        this.state       = 'WALKING';
+        this.mood        = null;
+        this.personality = null;
+        this.g           = scene.add.graphics();
+      }
+
+      update(delta) {
+        this.t += delta / 1000;
+        this.x += this.vx * delta / 1000;
+
+        const minX = WALL_W + 25;
+        const maxX = W - WALL_W - 25;
+        if (this.x <= minX) { this.x = minX; this.vx =  Math.abs(this.vx); }
+        if (this.x >= maxX) { this.x = maxX; this.vx = -Math.abs(this.vx); }
+
+        this.draw();
+      }
+
+      draw() {
+        const g = this.g;
+        g.clear();
+        g.lineStyle(2, 0x1e1e1e, 1);
+        g.fillStyle(0x1e1e1e, 1);
+
+        const x   = this.x;
+        const dir = this.vx >= 0 ? 1 : -1;
+        const s   = Math.sin(this.t * 4.0) * 0.38;
+
+        const R  = 9, BL = 26, LL = 22, AL = 17;
+        const hipY  = GROUND - LL;
+        const shldY = hipY - BL;
+        const headY = shldY - R - 2;
+
+        g.fillCircle(x, headY, R);
+        this._ln(g, x, shldY, x, hipY);
+        this._ln(g, x, hipY, x + dir * Math.sin(s) * LL, hipY + Math.cos(s) * LL);
+        this._ln(g, x, hipY, x - dir * Math.sin(s) * LL, hipY + Math.cos(s) * LL);
+        this._ln(g, x, shldY, x - dir * Math.sin(s) * AL, shldY + AL * 0.9);
+        this._ln(g, x, shldY, x + dir * Math.sin(s) * AL, shldY + AL * 0.9);
+      }
+
+      _ln(g, x1, y1, x2, y2) {
+        g.beginPath();
+        g.moveTo(x1, y1);
+        g.lineTo(x2, y2);
+        g.strokePath();
+      }
+
+      get headY() {
+        return GROUND - 22 - 26 - 9 - 2;
+      }
+    }
+
+    class RoomScene extends Phaser.Scene {
+      constructor() { super({ key: 'RoomScene' }); }
+
+      create() {
+        this.add.rectangle(W / 2, H / 2, W, H, C.bg);
+        this.add.rectangle(W / 2, H - FLOOR_H / 2, W, FLOOR_H, C.floorFill);
+        this.add.rectangle(W / 2, GROUND, W, 3, C.wall);
+        this.add.rectangle(W / 2, GROUND + 8, W, 10, C.baseboard);
+        this.add.rectangle(W / 2, CEIL_H / 2, W, CEIL_H, C.wall);
+        this.add.rectangle(WALL_W / 2, H / 2, WALL_W, H, C.wall);
+        this.add.rectangle(W - WALL_W / 2, H / 2, WALL_W, H, C.wall);
+
+        this.figure = new StickFigure(this, W / 2);
+
+        this.notifText = this.add.text(W / 2, 60, '', {
+          fontSize: '12px',
+          color: '#1e1e1e',
+          backgroundColor: '#f2f0eb',
+          padding: { x: 8, y: 4 },
+        }).setOrigin(0.5).setAlpha(0);
+
+        window.gameScene = this;
+      }
+
+      update(_, delta) {
+        this.figure.update(delta);
+
+        if (this.notifText.alpha > 0) {
+          this.notifText.setX(this.figure.x);
+        }
+
+        updateDebug(this.figure);
+      }
+
+      showLearnedWords(words) {
+        this.notifText.setText(words.join('　'));
+        this.notifText.setAlpha(1);
+        this.notifText.setY(this.figure.headY - 20);
+
+        this.tweens.add({
+          targets: this.notifText,
+          alpha: 0,
+          delay: 1800,
+          duration: 600,
+        });
+      }
+    }
+
+    new Phaser.Game({
+      type: Phaser.AUTO,
+      width: W,
+      height: H,
+      scene: RoomScene,
+      parent: document.body,
+      backgroundColor: '#f2f0eb',
+    });
+  </script>
+</body>
+</html>
