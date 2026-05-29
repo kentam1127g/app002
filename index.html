@@ -389,6 +389,7 @@
 3. その他の印象的な単語を${n}個（food / event / other）
 
 フィールド：word / emotion（positive・negative・neutral）/ category（person・food・place・emotion・event・other）
+注意：動詞は必ず辞書形（原形）で抽出する。「寝ないと」→「寝る」、「食べなきゃ」→「食べる」のように、義務・否定の語尾は取り除いて原形にする。
 説明文は不要。JSON配列のみ返す。`,
             },
             { role: 'user', content: diaryText },
