@@ -473,9 +473,10 @@
 
     // 単語帳に追加（重み・共起リンクを更新）
     function addWordsToBank(newWords) {
-      const inEntry = newWords.map(w => w.word);
+      const filtered = newWords.filter(w => isValidWord(w.word));
+      const inEntry  = filtered.map(w => w.word);
 
-      newWords.forEach(({ word, emotion, category }) => {
+      filtered.forEach(({ word, emotion, category }) => {
         const existing = wordBank.find(w => w.word === word);
         if (existing) {
           existing.weight++;
@@ -499,6 +500,13 @@
     }
 
     // ---- OpenAI API ----
+
+    const WORD_BLOCKLIST = new Set([
+      'neutral', 'positive', 'negative',
+      'person', 'food', 'place', 'emotion', 'event', 'other',
+      'word', 'category',
+    ]);
+    const isValidWord = w => w && w.length >= 2 && !WORD_BLOCKLIST.has(w.toLowerCase());
 
     // 日記の長さに応じた抽出数（固有名詞枠は別）
     function otherWordCount(len) {
@@ -698,7 +706,7 @@
       const wb = loadWordBank();
       if (wb.length === 0) return '…';
 
-      const topWords = [...wb].sort((a, b) => b.weight - a.weight).slice(0, 12);
+      const topWords = [...wb].filter(w => isValidWord(w.word)).sort((a, b) => b.weight - a.weight).slice(0, 12);
       const wordList = topWords.map(w => w.word).join('・');
 
       const res = await fetch('/api/openai', {
