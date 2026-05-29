@@ -276,7 +276,6 @@
     </div>
   </div>
 
-  <script src="config.js"></script>
   <script src="https://cdn.jsdelivr.net/npm/phaser@3.60.0/dist/phaser.min.js"></script>
   <script>
     const W = 480;
@@ -374,12 +373,9 @@
 
     async function extractWordsFromDiary(diaryText) {
       const n = otherWordCount(diaryText.length);
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('/api/openai', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CONFIG.apiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [
@@ -406,12 +402,9 @@
     }
 
     async function extractWordsFromPhoto(base64) {
-      const res = await fetch('https://api.openai.com/v1/chat/completions', {
+      const res = await fetch('/api/openai', {
         method: 'POST',
-        headers: {
-          'Content-Type': 'application/json',
-          'Authorization': `Bearer ${CONFIG.apiKey}`,
-        },
+        headers: { 'Content-Type': 'application/json' },
         body: JSON.stringify({
           model: 'gpt-4o-mini',
           messages: [{
