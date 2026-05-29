@@ -32,6 +32,23 @@
     }
     #diary-btn:hover { background: #3a3a3a; }
 
+    #utterance-btn {
+      position: fixed;
+      bottom: 24px;
+      right: 130px;
+      background: transparent;
+      color: #888;
+      border: 1px solid #444;
+      padding: 10px 16px;
+      font-size: 11px;
+      letter-spacing: 0.1em;
+      cursor: pointer;
+      z-index: 10;
+      font-family: 'Courier New', monospace;
+    }
+    #utterance-btn:hover  { color: #f2f0eb; border-color: #888; }
+    #utterance-btn:disabled { color: #444; border-color: #333; cursor: default; }
+
     #diary-panel {
       display: none;
       position: fixed;
@@ -236,6 +253,7 @@
     </div>
   </div>
 
+  <button id="utterance-btn">発話</button>
   <button id="diary-btn">日記を書く</button>
 
   <!-- デバッグパネル -->
@@ -545,6 +563,61 @@
       }
     });
 
+    // ---- 発話生成 ----
+    async function generateUtterance(figure) {
+      const wb = loadWordBank();
+      if (wb.length === 0) return '…';
+
+      const topWords = [...wb].sort((a, b) => b.weight - a.weight).slice(0, 12);
+      const wordList = topWords.map(w => w.word).join('・');
+
+      const res = await fetch('/api/openai', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify({
+          model: 'gpt-4o-mini',
+          messages: [
+            {
+              role: 'system',
+              content: `あなたは棒人間「${figure.name}」です。
+理解力は高いが表現が制限されています。
+
+気分：${figure.mood || '普通'}
+覚えた単語：${wordList}
+
+状況を内部で把握したうえで、以下のルールで一言だけ発言してください：
+- 15文字以内
+- 単語帳の言葉を使う
+- 流暢な説明文は書かない
+- たまに単語一つだけでもいい
+- 「…」「〜ね」「〜かも」を時々使う
+- 発言内容のみ返す（説明・かぎかっこ不要）`,
+            },
+            { role: 'user', content: 'いま一言だけ言って。' },
+          ],
+          max_tokens: 30,
+          temperature: 0.95,
+        }),
+      });
+
+      const data = await res.json();
+      return data.choices[0].message.content.trim().replace(/「|」/g, '');
+    }
+
+    const utteranceBtn = document.getElementById('utterance-btn');
+    utteranceBtn.addEventListener('click', async () => {
+      if (!window.gameScene) return;
+      utteranceBtn.disabled = true;
+      try {
+        const text = await generateUtterance(window.gameScene.figure);
+        window.gameScene.showSpeechBubble(text);
+      } catch (e) {
+        console.error(e);
+      } finally {
+        utteranceBtn.disabled = false;
+      }
+    });
+
     // ---- デバッグパネル ----
     let debugVisible = false;
     const debugPanel = document.getElementById('debug-panel');
@@ -699,8 +772,46 @@
         if (this.notifText.alpha > 0) {
           this.notifText.setX(this.figure.x);
         }
+        if (this.bubble) {
+          this.bubble.setX(this.figure.x);
+        }
 
         updateDebug(this.figure);
+      }
+
+      showSpeechBubble(text) {
+        if (this.bubble) {
+          this.bubble.destroy();
+          this.bubble = null;
+        }
+
+        const txt = this.add.text(0, 0, text, {
+          fontSize: '12px',
+          color: '#1e1e1e',
+          padding: { x: 9, y: 6 },
+        }).setOrigin(0.5);
+
+        const bg = this.add.rectangle(0, 0, txt.width + 18, txt.height + 12, 0xf2f0eb);
+        bg.setStrokeStyle(1.5, 0x1e1e1e);
+
+        // 吹き出しの三角（下向き）
+        const tri = this.add.triangle(0, bg.height / 2 + 5, -5, 0, 5, 0, 0, 8, 0xf2f0eb);
+
+        this.bubble = this.add.container(
+          this.figure.x,
+          this.figure.headY - 28,
+          [bg, txt, tri]
+        );
+
+        this.tweens.add({
+          targets: this.bubble,
+          alpha: 0,
+          delay: 3800,
+          duration: 600,
+          onComplete: () => {
+            if (this.bubble) { this.bubble.destroy(); this.bubble = null; }
+          },
+        });
       }
 
       showLearnedWords(words) {
