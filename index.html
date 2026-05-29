@@ -381,13 +381,13 @@
   <button id="utterance-btn">発話</button>
   <button id="diary-btn">日記を書く</button>
 
-  <!-- MDアップロードパネル（開発用） -->
-  <button id="md-toggle">MD</button>
+  <!-- TXTアップロードパネル（開発用） -->
+  <button id="md-toggle">TXT</button>
   <div id="md-panel">
-    <div class="d-title" style="margin-bottom:8px;">MD BULK IMPORT &nbsp;<span style="color:#333">dev only</span></div>
+    <div class="d-title" style="margin-bottom:8px;">TXT BULK IMPORT &nbsp;<span style="color:#333">dev only</span></div>
     <div id="md-drop-zone">
-      <input type="file" id="md-input" multiple accept=".md" style="display:none">
-      .mdファイルをドロップ、またはクリック
+      <input type="file" id="md-input" multiple accept=".txt" style="display:none">
+      .txtファイルをドロップ、またはクリック
     </div>
     <div id="md-file-list"></div>
     <div id="md-controls">
@@ -961,7 +961,7 @@
       dropZone.addEventListener('drop', e => {
         e.preventDefault();
         dropZone.classList.remove('drag-over');
-        addFiles([...e.dataTransfer.files].filter(f => f.name.endsWith('.md')));
+        addFiles([...e.dataTransfer.files].filter(f => f.name.endsWith('.txt')));
       });
       fileInput.addEventListener('change', e => {
         addFiles([...e.target.files]);
@@ -1024,8 +1024,7 @@
           renderFileList();
 
           try {
-            const raw  = await f.file.text();
-            const text = stripMarkdown(raw);
+            const text = (await f.file.text()).trim();
 
             if (text.length < 5) {
               f.status = 'done';
