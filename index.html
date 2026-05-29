@@ -535,12 +535,29 @@
       return 4;
     }
 
-    // JSONパース（失敗時は空配列を返す）
+    // JSONパース（```json で囲まれている場合や、レスポンス中の配列も探す）
     function parseWordJSON(raw) {
+      // そのままパース
       try {
         const parsed = JSON.parse(raw);
         if (Array.isArray(parsed)) return parsed;
       } catch (_) {}
+      // ```json ... ``` で囲まれている場合
+      const fenced = raw.match(/```(?:json)?\s*([\s\S]*?)```/);
+      if (fenced) {
+        try {
+          const parsed = JSON.parse(fenced[1].trim());
+          if (Array.isArray(parsed)) return parsed;
+        } catch (_) {}
+      }
+      // レスポンス中の [...] を探す
+      const arrayMatch = raw.match(/\[[\s\S]*?\]/);
+      if (arrayMatch) {
+        try {
+          const parsed = JSON.parse(arrayMatch[0]);
+          if (Array.isArray(parsed)) return parsed;
+        } catch (_) {}
+      }
       return [];
     }
 
